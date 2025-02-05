@@ -23,6 +23,7 @@ class AudioManager: NSObject, ObservableObject {
     @Published var noiseLevel: Float = 0.0
     @Published var showNoiseAlert = false
     @Published var recordings: [Recording] = []
+    @Published var audioAmplitudes: [Float] = []  // Holds the audio amplitude values for visualizer
     
     struct Recording: Identifiable {
         let id = UUID()
@@ -141,6 +142,15 @@ class AudioManager: NSObject, ObservableObject {
             self.audioRecorder?.updateMeters()
             self.noiseLevel = self.audioRecorder?.averagePower(forChannel: 0) ?? 0.0
             self.showNoiseAlert = self.noiseLevel > self.noiseThreshold
+            
+            // Store the current amplitude for the visualizer
+            let amplitude = self.noiseLevel
+            self.audioAmplitudes.append(amplitude)
+            
+            // Limit the array size to 100 for performance
+            if self.audioAmplitudes.count > 100 {
+                self.audioAmplitudes.removeFirst()
+            }
         }
     }
     

@@ -15,6 +15,9 @@ struct AudioRecorderView: View {
             NoiseLevelView(noiseLevel: viewModel.noiseLevel, showAlert: viewModel.showNoiseAlert)
             RecordingButton(isRecording: viewModel.isRecording, action: viewModel.toggleRecording)
             RecordingListView(viewModel: viewModel)
+            // Audio visualizer
+            AudioVisualizerView(viewModel: viewModel)
+                .padding(.top)
         }
         .padding()
     }
