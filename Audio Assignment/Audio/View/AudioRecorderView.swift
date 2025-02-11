@@ -20,6 +20,14 @@ struct AudioRecorderView: View {
                 .padding(.top)
         }
         .padding()
+        // Show the alert when noise level exceeds the threshold
+        .alert(isPresented: $viewModel.showNoiseAlert) {
+            Alert(
+                title: Text("High Noise Level"),
+                message: Text("The noise level has exceeded the threshold."),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
 }
 

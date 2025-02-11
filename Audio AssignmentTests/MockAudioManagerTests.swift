@@ -44,7 +44,7 @@ class MockAudioManagerTests: XCTestCase {
     func testRecordingList_WhenRecordingsAdded_ReflectsInList() {
         let viewModel = MockAudioManager()
         
-        let recording = AudioManager.Recording(url: URL(fileURLWithPath: "test.m4a"), createdAt: Date())
+        let recording = Recording(url: URL(fileURLWithPath: "test.m4a"), createdAt: Date())
         viewModel.recordings.append(recording)
         
         XCTAssertEqual(viewModel.recordings.count, 1)  // The list should have 1 recording

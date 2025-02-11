@@ -8,13 +8,19 @@
 import AVFoundation
 import Foundation
 
+struct Recording: Identifiable {
+    let id = UUID()
+    let url: URL
+    let createdAt: Date
+}
+
 /// Manages audio recording, playback, and noise reduction.
 class AudioManager: NSObject, ObservableObject {
     
     // MARK: - Properties
     private var audioRecorder: AVAudioRecorder?
     private var audioPlayer: AVAudioPlayer?
-    private var timer: Timer?
+    var timer: Timer?
     
     private let noiseThreshold: Float = -10.0
     
@@ -24,12 +30,6 @@ class AudioManager: NSObject, ObservableObject {
     @Published var showNoiseAlert = false
     @Published var recordings: [Recording] = []
     @Published var audioAmplitudes: [Float] = []  // Holds the audio amplitude values for visualizer
-    
-    struct Recording: Identifiable {
-        let id = UUID()
-        let url: URL
-        let createdAt: Date
-    }
     
     // MARK: - Public Methods
     
@@ -64,7 +64,7 @@ class AudioManager: NSObject, ObservableObject {
     // MARK: - Private Methods
     
     /// Starts audio recording.
-    private func startRecording() {
+    func startRecording() {
         do {
             try configureAudioSession()
             let audioFilename = generateAudioFileURL()
@@ -83,21 +83,21 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     /// Stops audio recording.
-    private func stopRecording() {
+    func stopRecording() {
         audioRecorder?.stop()
         isRecording = false
         timer?.invalidate()
+        timer = nil
         
         if let url = audioRecorder?.url {
-            let recording = Recording(url: url, createdAt: Date())
-            recordings.append(recording)
-            applyNoiseReductionEffect(to: url)
+            let _ = Recording(url: url, createdAt: Date())
         }
     }
     
     /// Plays an audio recording.
-    private func playRecording(at url: URL) {
+    func playRecording(at url: URL) {
         do {
+            try configureAudioSessionPlay()
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.play()
@@ -108,7 +108,7 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     /// Stops audio playback.
-    private func stopPlayback() {
+     func stopPlayback() {
         audioPlayer?.stop()
         currentPlayingURL = nil
     }
@@ -123,6 +123,12 @@ class AudioManager: NSObject, ObservableObject {
     private func configureAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .default)
+        try audioSession.setActive(true)
+    }
+    
+    private func configureAudioSessionPlay() throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.playback, mode: .default)
         try audioSession.setActive(true)
     }
     
@@ -155,56 +161,67 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     /// Applies basic noise reduction to an audio file.
-    func applyNoiseReductionEffect(to url: URL) {
+    // Applies basic noise reduction to an audio file after recording
+    func applyRefinedNoiseReductionEffect(to url: URL) {
         do {
             let audioEngine = AVAudioEngine()
             let audioFile = try AVAudioFile(forReading: url)
             
+            // Nodes for processing
             let audioPlayerNode = AVAudioPlayerNode()
-            let eqNode = AVAudioUnitEQ(numberOfBands: 1)
-            let reverbNode = AVAudioUnitReverb()
+            let eqNode = AVAudioUnitEQ(numberOfBands: 2) // Applying High-Pass and Low-Pass filters
             
-            // Configure High-Pass Filter
-            let eqBand = eqNode.bands[0]
-            eqBand.filterType = .highPass
-            eqBand.frequency = 300 // Removes frequencies below 300Hz
-            eqBand.gain = -3
+            // High-pass filter (remove low-frequency noise)
+            let highPassBand = eqNode.bands[0]
+            highPassBand.filterType = .highPass
+            highPassBand.frequency = 300  // Remove low frequencies below 300Hz
+            highPassBand.gain = -12  // Attenuate low frequencies
             
-            // Configure slight Reverb
-            reverbNode.loadFactoryPreset(.mediumRoom)
-            reverbNode.wetDryMix = 10
+            // Low-pass filter (remove high-frequency noise)
+            let lowPassBand = eqNode.bands[1]
+            lowPassBand.filterType = .lowPass
+            lowPassBand.frequency = 5000  // Remove frequencies above 5000Hz
+            lowPassBand.gain = -12  // Attenuate high frequencies
             
-            // Attach and connect nodes
+            // Attach and connect nodes in the audio engine
             audioEngine.attach(audioPlayerNode)
             audioEngine.attach(eqNode)
-            audioEngine.attach(reverbNode)
             
+            // Connect audioPlayerNode -> eqNode -> outputNode
             audioEngine.connect(audioPlayerNode, to: eqNode, format: audioFile.processingFormat)
-            audioEngine.connect(eqNode, to: reverbNode, format: audioFile.processingFormat)
-            audioEngine.connect(reverbNode, to: audioEngine.outputNode, format: audioFile.processingFormat)
-
+            audioEngine.connect(eqNode, to: audioEngine.outputNode, format: audioFile.processingFormat)
+            
             try audioEngine.start()
             
-            // Process and save audio
-            let outputURL = url.deletingLastPathComponent().appendingPathComponent("processed_\(url.lastPathComponent)")
+            // Process the audio file into a buffer
+            let outputURL = url.deletingLastPathComponent().appendingPathComponent("refined_processed_\(url.lastPathComponent)")
             let outputFile = try AVAudioFile(forWriting: outputURL, settings: audioFile.fileFormat.settings)
             
             let outputBuffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: AVAudioFrameCount(audioFile.length))
             try audioFile.read(into: outputBuffer!)
+            
+            // Write the processed audio into a new file
             try outputFile.write(from: outputBuffer!)
             
             print("Processed audio saved at \(outputURL)")
+            
+            // Create a new Recording with the processed audio and append it to the recordings array
+            let newRecording = Recording(url: outputURL, createdAt: Date())
+            recordings.append(newRecording)
         } catch {
             print("Failed to apply noise reduction: \(error.localizedDescription)")
         }
     }
+
+
+
 }
 
 // MARK: - AVAudioRecorder & AVAudioPlayer Delegate
 extension AudioManager: AVAudioRecorderDelegate, AVAudioPlayerDelegate {
     func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         if flag {
-            applyNoiseReductionEffect(to: recorder.url)
+            applyRefinedNoiseReductionEffect(to: recorder.url)
         }
     }
     

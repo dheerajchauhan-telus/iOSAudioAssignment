@@ -42,7 +42,7 @@ class AudioManagerTests: XCTestCase {
     /// Test deleting a recording.
     func testDeleteRecording() {
         // Create a mock recording
-        let mockRecording = AudioManager.Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
+        let mockRecording = Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
         audioManager.recordings.append(mockRecording)
         
         XCTAssertEqual(audioManager.recordings.count, 1, "Should contain 1 recording before deletion")
@@ -59,7 +59,7 @@ class AudioManagerTests: XCTestCase {
     
     /// Test playing a recording.
     func testTogglePlayback() {
-        let mockRecording = AudioManager.Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
+        let mockRecording = Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
         
         // Start playback
         audioManager.togglePlayback(for: mockRecording)
@@ -79,7 +79,7 @@ class AudioManagerTests: XCTestCase {
     
     /// Test if `isPlaying(recording:)` correctly identifies the playing recording.
     func testIsPlaying() {
-        let mockRecording = AudioManager.Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
+        let mockRecording = Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
         
         audioManager.togglePlayback(for: mockRecording)
         
@@ -91,7 +91,7 @@ class AudioManagerTests: XCTestCase {
         }
         wait(for: [expectation], timeout: 1.0)
         
-        let anotherRecording = AudioManager.Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
+        let anotherRecording = Recording(url: audioManager.generateAudioFileURL(), createdAt: Date())
         XCTAssertFalse(self.audioManager.isPlaying(recording: anotherRecording), "Different recording should not be playing")
     }
 
@@ -105,5 +105,62 @@ class AudioManagerTests: XCTestCase {
         
         audioManager.toggleRecording()
         XCTAssertFalse(audioManager.isRecording)
+    }
+    
+    // Test if audio recording starts and stops correctly
+    func testAudioRecording() {
+        audioManager.startRecording()
+        XCTAssertTrue(audioManager.isRecording, "Recording should be in progress")
+        
+        audioManager.stopRecording()
+        XCTAssertFalse(audioManager.isRecording, "Recording should be stopped")
+    }
+    
+    // Test if noise level monitoring works
+    func testNoiseLevelMonitoring() {
+        audioManager.startRecording()
+        XCTAssertNotNil(audioManager.timer, "Noise monitoring timer should be running")
+        
+        audioManager.stopRecording()
+        XCTAssertNil(audioManager.timer, "Noise monitoring timer should be invalidated")
+    }
+    
+    // Test if noise reduction is applied after recording
+    func testNoiseReduction() {
+        let testURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("test_recording.m4a")
+        
+        // Create a dummy audio file for testing
+        do {
+            try "dummy audio data".write(to: testURL, atomically: true, encoding: .utf8)
+        } catch {
+            XCTFail("Failed to create dummy audio file: \(error.localizedDescription)")
+        }
+        
+        // Apply noise reduction
+        audioManager.applyRefinedNoiseReductionEffect(to: testURL)
+        
+        // Verify if the processed file exists
+        let processedURL = testURL.deletingLastPathComponent().appendingPathComponent("refined_processed_test_recording.m4a")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: processedURL.path), "Processed audio file should exist")
+    }
+    
+    // Test if playback starts and stops correctly
+    func testAudioPlayback() {
+        let testURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("test_recording.m4a")
+        
+        // Create a dummy audio file for testing
+        do {
+            try "dummy audio data".write(to: testURL, atomically: true, encoding: .utf8)
+        } catch {
+            XCTFail("Failed to create dummy audio file: \(error.localizedDescription)")
+        }
+        
+        // Start playback
+        audioManager.playRecording(at: testURL)
+        XCTAssertNil(audioManager.currentPlayingURL, "Playback should be in progress")
+        
+        // Stop playback
+        audioManager.stopPlayback()
+        XCTAssertNil(audioManager.currentPlayingURL, "Playback should be stopped")
     }
 }
