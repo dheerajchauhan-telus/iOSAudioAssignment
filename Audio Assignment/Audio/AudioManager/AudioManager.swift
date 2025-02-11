@@ -161,7 +161,6 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     /// Applies basic noise reduction to an audio file.
-    // Applies basic noise reduction to an audio file after recording
     func applyRefinedNoiseReductionEffect(to url: URL) {
         do {
             let audioEngine = AVAudioEngine()
