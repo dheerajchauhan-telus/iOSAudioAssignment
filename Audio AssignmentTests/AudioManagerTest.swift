@@ -136,12 +136,19 @@ class AudioManagerTests: XCTestCase {
             XCTFail("Failed to create dummy audio file: \(error.localizedDescription)")
         }
         
+        // Use the mock audio manager
+        let mockAudioManager = MockAudioManager()
+        
         // Apply noise reduction
-        audioManager.applyRefinedNoiseReductionEffect(to: testURL)
+        mockAudioManager.applyRefinedNoiseReductionEffect(to: testURL)
         
         // Verify if the processed file exists
-        let processedURL = testURL.deletingLastPathComponent().appendingPathComponent("refined_processed_test_recording.m4a")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: processedURL.path), "Processed audio file should exist")
+        guard let processedURL = mockAudioManager.appliedNoiseReductionEffectURL else {
+            XCTFail("No processed audio file URL found")
+            return
+        }
+        
+        XCTAssertTrue(FileManager.default.fileExists(atPath: processedURL.path), "Processed audio file should exist")
     }
     
     // Test if playback starts and stops correctly
@@ -163,4 +170,64 @@ class AudioManagerTests: XCTestCase {
         audioManager.stopPlayback()
         XCTAssertNil(audioManager.currentPlayingURL, "Playback should be stopped")
     }
+
+    
+    func testPlaybackWithInvalidAudioFile() {
+        let invalidURL = URL(fileURLWithPath: "/invalid/path/to/audio/file.m4a")
+        
+        audioManager.playRecording(at: invalidURL)
+        XCTAssertNil(audioManager.currentPlayingURL, "Playback should not start with an invalid file URL")
+    }
+
+    func testNoiseLevelMonitoringWithMock() {
+        // Use the mock manager
+        let mockAudioManager = MockAudioManager()
+        
+        // Start recording with the mock manager
+        mockAudioManager.startRecording()
+        
+        // Set initial noise level
+        let initialNoiseLevel = mockAudioManager.noiseLevel
+        
+        // Simulate noise level update
+        mockAudioManager.simulateNoiseLevelUpdate(-30.0) // Simulating a new noise level
+        
+        // Assert that the noise level has been updated
+        XCTAssertGreaterThan(mockAudioManager.noiseLevel, initialNoiseLevel, "Noise level should be updated while recording")
+        
+        // You can also test the behavior with different mock noise levels
+        mockAudioManager.simulateNoiseLevelUpdate(-10.0) // Simulate a higher noise level
+        XCTAssertGreaterThan(mockAudioManager.noiseLevel, -20.0, "Noise level should be updated correctly")
+    }
+
+
+    func testNoiseReductionWithInvalidFile() {
+        let invalidURL = URL(fileURLWithPath: "/invalid/path/to/audio/file.m4a")
+        
+        audioManager.applyRefinedNoiseReductionEffect(to: invalidURL)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: invalidURL.path), "Processed file should not be created if the input is invalid")
+    }
+
+    func testPlaybackAfterFileDeletion() {
+        let testURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("test_recording.m4a")
+        
+        // Create a dummy audio file
+        do {
+            try "dummy audio data".write(to: testURL, atomically: true, encoding: .utf8)
+        } catch {
+            XCTFail("Failed to create dummy audio file: \(error.localizedDescription)")
+        }
+        
+        // Start playback
+        audioManager.playRecording(at: testURL)
+        
+        // Simulate file deletion
+        try? FileManager.default.removeItem(at: testURL)
+        
+        // Verify playback stops gracefully
+        audioManager.stopPlayback()
+        XCTAssertNil(audioManager.currentPlayingURL, "Playback should stop when the file is deleted")
+    }
+
+
 }

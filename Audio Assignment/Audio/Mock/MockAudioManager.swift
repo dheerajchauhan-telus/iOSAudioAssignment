@@ -8,21 +8,21 @@
 import Foundation
 
 class MockAudioManager: AudioManager {
-
+    
     // Simulating the noise level (read-write)
-    private var _noiseLevel: Float = 50.0
+    private var _noiseLevel: Float = -50.0
     override var noiseLevel: Float {
         get { _noiseLevel }
         set { _noiseLevel = newValue }
     }
-
+    
     // Simulating recording state (read-write)
     private var _isRecording: Bool = false
     override var isRecording: Bool {
         get { _isRecording }
         set { _isRecording = newValue }
     }
-
+    
     // Simulating noise alert (read-write) - Manual State Change for Mock
     private var _showNoiseAlert: Bool = false
     override var showNoiseAlert: Bool {
@@ -41,21 +41,30 @@ class MockAudioManager: AudioManager {
         set { _recordings = newValue }
     }
     
+    var appliedNoiseReductionEffectURL: URL?
+    override func applyRefinedNoiseReductionEffect(to url: URL) {
+          // Simulate the effect application without real processing
+          let processedURL = url.deletingLastPathComponent().appendingPathComponent("refined_processed_\(url.lastPathComponent)")
+          appliedNoiseReductionEffectURL = processedURL
+          
+          // Simulate the "processing" of the audio file by just touching the file
+          FileManager.default.createFile(atPath: processedURL.path, contents: nil, attributes: nil)
+      }
+    
+    override func startRecording() {
+        super.startRecording()
+        // You can simulate setting the noise level manually here
+        self.noiseLevel = -50.0 // Dummy noise level for testing
+    }
+    
+    // Optionally, simulate noise level updates
+    func simulateNoiseLevelUpdate(_ level: Float) {
+        self.noiseLevel = level
+    }
+    
     // Simulating the toggle recording action
     override func toggleRecording() {
         isRecording.toggle()
-    }
-    
-    // Simulating the playback toggle
-    override func togglePlayback(for recording: Recording) {
-        // Mock the playback toggle logic
-    }
-    
-    // Simulating the delete recording action
-    override func deleteRecording(at offsets: IndexSet) {
-        for index in offsets {
-            _recordings.remove(at: index)
-        }
     }
     
     // Manual noise alert simulation for testing

@@ -18,7 +18,7 @@ struct Recording: Identifiable {
 class AudioManager: NSObject, ObservableObject {
     
     // MARK: - Properties
-    private var audioRecorder: AVAudioRecorder?
+    var audioRecorder: AVAudioRecorder?
     private var audioPlayer: AVAudioPlayer?
     var timer: Timer?
     
