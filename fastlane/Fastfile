@@ -1,0 +1,50 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run all unit tests"
+  lane :run_unit_tests do
+    scan(
+      scheme: "Audio_Assignment", # Replace with your scheme name
+      devices: ["iPhone 16"], # Specify the simulator device
+      clean: true
+    )
+  end
+
+  desc "Build the app"
+  lane :build_release_app do
+    gym(
+      scheme: "Audio_Assignment", # Replace with your scheme name
+      clean: true,
+      export_method: "ad-hoc" # Change to "app-store" for App Store builds
+    )
+  end
+
+  desc "Run tests and build the app"
+  lane :test_and_build do
+    run_unit_tests
+    build_release_app
+  end
+
+  desc "Deploy to TestFlight"
+  lane :deploy_to_testflight do
+    build_release_app
+    pilot(
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
